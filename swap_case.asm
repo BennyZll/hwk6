@@ -93,74 +93,75 @@ Exit:
 # YOU CAN ONLY MODIFY THIS FILE FROM THIS POINT ONWARDS:
 
 SwapCase:
-    # prologue
-    addiu $sp, $sp, -16
-    sw    $ra, 12($sp)
-    sw    $s0,  8($sp)
+    addiu $sp, $sp, -8
+    sw    $ra, 4($sp)
+    sw    $s0, 0($sp)
+    move  $s0, $a0         
 
-    move  $s0, $a0          # s0 = pointer
-
-loop:
-    lb    $t0, 0($s0)       # t0 = *s0
-    beq   $t0, $zero, done  # if '\0' -> done
-
-    # check 'a'..'z'
+Loop:
+    lb    $t0, 0($s0)     
+    beq   $t0, $zero, Done 
+    sll   $zero, $zero, 0  
     li    $t1, 'a'
     li    $t2, 'z'
-    blt   $t0, $t1, check_upper
-    bgt   $t0, $t2, check_upper
+    blt   $t0, $t1, CheckUpper
+    sll   $zero, $zero, 0
+    bgt   $t0, $t2, CheckUpper
+    sll   $zero, $zero, 0
 
     addiu $t3, $t0, -32     # lower -> upper
-    j     do_letter
+    j     DoLetter
+    sll   $zero, $zero, 0
 
-check_upper:
-    # check 'A'..'Z'
+CheckUpper:
     li    $t1, 'A'
     li    $t2, 'Z'
-    blt   $t0, $t1, skip
-    bgt   $t0, $t2, skip
+    blt   $t0, $t1, NextChar
+    sll   $zero, $zero, 0
+    bgt   $t0, $t2, NextChar
+    sll   $zero, $zero, 0
 
     addiu $t3, $t0, 32      # upper -> lower
 
-do_letter:
-    # print original
+DoLetter:
+    # print original char
     li    $v0, 11
     move  $a0, $t0
     syscall
 
+    # print newline
     li    $v0, 11
     li    $a0, '\n'
     syscall
 
-    # print swapped
+    # print swapped char
     li    $v0, 11
     move  $a0, $t3
     syscall
 
+    # print newline
     li    $v0, 11
     li    $a0, '\n'
     syscall
 
-    # store swapped
+    # store swapped char back into string
     sb    $t3, 0($s0)
 
-    # use jal delay slot to advance pointer (no nop)
+    # call ConventionCheck (must preserve $ra for nested call)
     jal   ConventionCheck
-    addiu $s0, $s0, 1       # delay slot: executes before jump
+    sll   $zero, $zero, 0
 
-    j     loop
-
-skip:
+NextChar:
     addiu $s0, $s0, 1
-    j     loop
+    j     Loop
+    sll   $zero, $zero, 0
 
-done:
-    # epilogue
-    lw    $s0,  8($sp)
-    lw    $ra, 12($sp)
-    addiu $sp, $sp, 16
+Done:
+    # --- epilogue: restore saved regs ---
+    lw    $s0, 0($sp)
+    lw    $ra, 4($sp)
+    addiu $sp, $sp, 8
 
-    
     # Do not remove the "jr $ra" line below!!!
     # It should be the last line in your function code!
     jr $ra
