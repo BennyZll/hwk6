@@ -91,17 +91,18 @@ Exit:
 # COPYFROMHERE - DO NOT REMOVE THIS LINE
 
 # YOU CAN ONLY MODIFY THIS FILE FROM THIS POINT ONWARDS:
-SwapCase:
 
+SwapCase:
+    # prologue
     addiu $sp, $sp, -16
     sw    $ra, 12($sp)
     sw    $s0,  8($sp)
 
-    move  $s0, $a0          # s0 = pointer to current char
+    move  $s0, $a0          # s0 = pointer
 
 loop:
-    lb    $t0, 0($s0)       # t0 = current character (byte)
-    beq   $t0, $zero, done  # if '\0' end
+    lb    $t0, 0($s0)       # t0 = *s0
+    beq   $t0, $zero, done  # if '\0' -> done
 
     # check 'a'..'z'
     li    $t1, 'a'
@@ -109,56 +110,56 @@ loop:
     blt   $t0, $t1, check_upper
     bgt   $t0, $t2, check_upper
 
-    # lowercase -> uppercase
-    addiu $t3, $t0, -32     # swapped char in t3
+    addiu $t3, $t0, -32     # lower -> upper
     j     do_letter
 
 check_upper:
     # check 'A'..'Z'
     li    $t1, 'A'
     li    $t2, 'Z'
-    blt   $t0, $t1, next_char
-    bgt   $t0, $t2, next_char
+    blt   $t0, $t1, skip
+    bgt   $t0, $t2, skip
 
-    # uppercase -> lowercase
-    addiu $t3, $t0, 32      # swapped char in t3
+    addiu $t3, $t0, 32      # upper -> lower
 
 do_letter:
-    # print original char
+    # print original
     li    $v0, 11
     move  $a0, $t0
     syscall
 
-    # print newline
     li    $v0, 11
     li    $a0, '\n'
     syscall
 
-    # print swapped char
+    # print swapped
     li    $v0, 11
     move  $a0, $t3
     syscall
 
-    # print newline
     li    $v0, 11
     li    $a0, '\n'
     syscall
 
-    # store swapped char back
+    # store swapped
     sb    $t3, 0($s0)
 
-
+    # use jal delay slot to advance pointer (no nop)
     jal   ConventionCheck
+    addiu $s0, $s0, 1       # delay slot: executes before jump
 
-next_char:
+    j     loop
+
+skip:
     addiu $s0, $s0, 1
     j     loop
 
 done:
-
+    # epilogue
     lw    $s0,  8($sp)
     lw    $ra, 12($sp)
     addiu $sp, $sp, 16
+    jr    $ra
 
     
     # Do not remove the "jr $ra" line below!!!
