@@ -91,77 +91,67 @@ Exit:
 # COPYFROMHERE - DO NOT REMOVE THIS LINE
 
 # YOU CAN ONLY MODIFY THIS FILE FROM THIS POINT ONWARDS:
-
+# YOU CAN ONLY MODIFY THIS FILE FROM THIS POINT ONWARDS:
 SwapCase:
-    addiu $sp, $sp, -8
-    sw    $ra, 4($sp)
-    sw    $s0, 0($sp)
-    move  $s0, $a0         
+    # Prolouge: Save $ra and preserved registers to stack
+    addi $sp, $sp, -12
+    sw $ra, 0($sp)
+    sw $s0, 4($sp)
+    sw $s1, 8($sp)
 
-Loop:
-    lb    $t0, 0($s0)     
-    beq   $t0, $zero, Done 
-    sll   $zero, $zero, 0  
-    li    $t1, 'a'
-    li    $t2, 'z'
-    blt   $t0, $t1, CheckUpper
-    sll   $zero, $zero, 0
-    bgt   $t0, $t2, CheckUpper
-    sll   $zero, $zero, 0
+    move $s0, $a0        # Copy base address to $s0 (preserved across calls)
 
-    addiu $t3, $t0, -32     # lower -> upper
-    j     DoLetter
-    sll   $zero, $zero, 0
+loop:
+    lb $s1, 0($s0)       # Load current character
+    beq $s1, $zero, done # If null terminator, exit loop
+    
+    # Check if character is a letter [A-Z] or [a-z]
+    li $t0, 'A'
+    blt $s1, $t0, skip_char
+    li $t0, 'Z'
+    ble $s1, $t0, is_letter
+    
+    li $t0, 'a'
+    blt $s1, $t0, skip_char
+    li $t0, 'z'
+    bgt $s1, $t0, skip_char
 
-CheckUpper:
-    li    $t1, 'A'
-    li    $t2, 'Z'
-    blt   $t0, $t1, NextChar
-    sll   $zero, $zero, 0
-    bgt   $t0, $t2, NextChar
-    sll   $zero, $zero, 0
-
-    addiu $t3, $t0, 32      # upper -> lower
-
-DoLetter:
-    # print original char
-    li    $v0, 11
-    move  $a0, $t0
+is_letter:
+    # Step 2: Print current character
+    move $a0, $s1
+    li $v0, 11           
+    syscall
+    
+    la $a0, newline      
+    li $v0, 4
     syscall
 
-    # print newline
-    li    $v0, 11
-    li    $a0, '\n'
+    # Step 3: Swap case and print new character
+    # Toggle 5th bit (0x20) to switch between upper and lower case
+    xori $s1, $s1, 0x20
+    sb $s1, 0($s0)       # Update string in memory
+    
+    move $a0, $s1        
+    li $v0, 11
+    syscall
+    
+    la $a0, newline      
+    li $v0, 4
     syscall
 
-    # print swapped char
-    li    $v0, 11
-    move  $a0, $t3
-    syscall
+    # Step 4: Call ConventionCheck
+    jal ConventionCheck
 
-    # print newline
-    li    $v0, 11
-    li    $a0, '\n'
-    syscall
+skip_char:
+    addi $s0, $s0, 1     # Increment string pointer
+    j loop
 
-    # store swapped char back into string
-    sb    $t3, 0($s0)
-
-    # call ConventionCheck (must preserve $ra for nested call)
-    jal   ConventionCheck
-    sll   $zero, $zero, 0
-
-NextChar:
-    addiu $s0, $s0, 1
-    j     Loop
-    sll   $zero, $zero, 0
-
-Done:
-    # --- epilogue: restore saved regs ---
-    lw    $s0, 0($sp)
-    lw    $ra, 4($sp)
-    addiu $sp, $sp, 8
-
+done:
+    # Epilogue: Restore registers and stack pointer
+    lw $ra, 0($sp)
+    lw $s0, 4($sp)
+    lw $s1, 8($sp)
+    addi $sp, $sp, 12
+    
     # Do not remove the "jr $ra" line below!!!
-    # It should be the last line in your function code!
     jr $ra
